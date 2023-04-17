@@ -44,26 +44,7 @@ REDIS_REQUIRED_MODULES = [
     {"name": "search", "ver": 20600},
     {"name": "ReJSON", "ver": 20404}
 ]
-REDIS_DEFAULT_ESCAPED_CHARS = re.compile(r"[,.<>{}\[\]\\\"\':;!@#$%^&*()\-+=~\/ ]")
-REDIS_SEARCH_SCHEMA = {
-    "document_id": TagField("$.document_id", as_name="document_id"),
-    "metadata": {
-        # "source_id": TagField("$.metadata.source_id", as_name="source_id"),
-        "source": TagField("$.metadata.source", as_name="source"),
-        # "author": TextField("$.metadata.author", as_name="author"),
-        # "created_at": NumericField("$.metadata.created_at", as_name="created_at"),
-    },
-    "embedding": VectorField(
-        "$.embedding",
-        REDIS_INDEX_TYPE,
-        {
-            "TYPE": "FLOAT64",
-            "DIM": VECTOR_DIMENSION,
-            "DISTANCE_METRIC": REDIS_DISTANCE_METRIC,
-        },
-        as_name="embedding",
-    ),
-}
+REDIS_DEFAULT_ESCAPED_CHARS = re.compile(r"[,.<>{}\[\]\\\"\':;!@#$%^&()\-+=~\/ ]")
 
 # Helper functions
 def unpack_schema(d: dict):
@@ -81,17 +62,16 @@ async def _check_redis_module_exist(client: redis.Redis, modules: List[dict]):
             error_message = "You must add the RediSearch (>= 2.6) and ReJSON (>= 2.4) modules from Redis Stack. " \
                 "Please refer to Redis Stack docs: https://redis.io/docs/stack/"
             logging.error(error_message)
-            raise ValueError(error_message)
-
+            raise AttributeError(error_message)
 
 
 class RedisDataStore(DataStore):
-    def __init__(self, client: redis.Redis):
+    def __init__(self, client: redis.Redis, redisearch_schema: dict):
         self.client = client
         self._schema = redisearch_schema
         # Init default metadata with sentinel values in case the document written has no metadata
         self._default_metadata = {
-            field: "_null_" for field in REDIS_SEARCH_SCHEMA["metadata"]
+            field: (0 if field == "created_at" else "_null_") for field in redisearch_schema["metadata"]
         }
 
     ### Redis Helper Methods ###
@@ -113,6 +93,26 @@ class RedisDataStore(DataStore):
 
         await _check_redis_module_exist(client, modules=REDIS_REQUIRED_MODULES)
 
+        dim = kwargs.get("dim", VECTOR_DIMENSION)
+        redisearch_schema = {
+            "metadata": {
+                "document_id": TagField("$.metadata.document_id", as_name="document_id"),
+                "source_id": TagField("$.metadata.source_id", as_name="source_id"),
+                "source": TagField("$.metadata.source", as_name="source"),
+                "author": TextField("$.metadata.author", as_name="author"),
+                "created_at": NumericField("$.metadata.created_at", as_name="created_at"),
+            },
+            "embedding": VectorField(
+                "$.embedding",
+                REDIS_INDEX_TYPE,
+                {
+                    "TYPE": "FLOAT64",
+                    "DIM": dim,
+                    "DISTANCE_METRIC": REDIS_DISTANCE_METRIC,
+                },
+                as_name="embedding",
+            ),
+        }
         try:
             # Check for existence of RediSearch Index
             await client.ft(REDIS_INDEX_NAME).info()
