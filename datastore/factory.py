@@ -9,11 +9,7 @@ async def get_datastore() -> DataStore:
     assert datastore is not None
 
     match datastore:
-        case Providers.llama.value:
-            from datastore.providers.llama_datastore import LlamaDataStore
-            return LlamaDataStore()
-
-        case Providers.pinecone.value:
+        case "pinecone":
             from datastore.providers.pinecone_datastore import PineconeDataStore
 
             return PineconeDataStore()
