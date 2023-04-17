@@ -207,7 +207,7 @@ class RedisDataStore(DataStore):
             if isinstance(typ, TagField):
                 return f"@{field}:{{{self._escape(value)}}} "
             elif isinstance(typ, TextField):
-                return f"@{field}:{self._escape(value)} "
+                return f"@{field}:{(value)} "
             elif isinstance(typ, NumericField):
                 num = to_unix_timestamp(value)
                 match field:
@@ -243,6 +243,7 @@ class RedisDataStore(DataStore):
         query_str = (
             f"({filter_str})=>[KNN {query.top_k} @embedding $embedding as score]"
         )
+
         return (
             RediSearchQuery(query_str)
             .sort_by("score")
