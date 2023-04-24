@@ -44,7 +44,8 @@ REDIS_REQUIRED_MODULES = [
     {"name": "search", "ver": 20600},
     {"name": "ReJSON", "ver": 20404}
 ]
-REDIS_DEFAULT_ESCAPED_CHARS = re.compile(r"[,.<>{}\[\]\\\"\':;!@#$%^&*()\-+=~\/ ]")
+
+REDIS_DEFAULT_ESCAPED_CHARS = re.compile(r"[,.<>{}\[\]\\\"\':;!@#$%^&()\-+=~\/ ]")
 
 # Helper functions
 def unpack_schema(d: dict):
@@ -244,7 +245,7 @@ class RedisDataStore(DataStore):
         query_str = (
             f"({filter_str})=>[KNN {query.top_k} @embedding $embedding as score]"
         )
-
+        print(query_str)
         return (
             RediSearchQuery(query_str)
             .sort_by("score")
